@@ -4,7 +4,7 @@ name: Linked Issue Enforcer
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *" # Every 5 minutes (test only)
   workflow_dispatch:
     inputs:
       dry_run:
