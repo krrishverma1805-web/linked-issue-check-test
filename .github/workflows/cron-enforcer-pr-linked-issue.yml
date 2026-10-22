@@ -1,10 +1,10 @@
-# This workflow automatically closes pull requests without a linked issue after 1 day.
+# This workflow automatically closes pull requests without a linked issue after 2 hours.
 
 name: Linked Issue Enforcer
 
 on:
   schedule:
-    - cron: "*/5 * * * *" # Every 5 minutes (test only)
+    - cron: "0 2 * * *" # Every day at 2:00 AM
   workflow_dispatch:
     inputs:
       dry_run:
@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
       - name: Checkout repository
@@ -33,10 +33,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ env.DRY_RUN }}
-          HOURS_BEFORE_CLOSE: "0"
+          HOURS_BEFORE_CLOSE: "2"
           REQUIRE_AUTHOR_ASSIGNED: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const script = require('./.github/scripts/cron-enforcer-pr-linked-issue.js');
-            await script({ github, context, core });
+            await script({ github, context });

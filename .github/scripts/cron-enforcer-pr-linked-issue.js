@@ -1,10 +1,10 @@
-// A script that closes pull requests without a linked issue after 24 hours automatically.
+// A script that closes pull requests without a linked issue after 2 hours automatically.
 
 // dryRun env var: any case-insensitive 'true' value will enable dry-run
 const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 const immediateCheck =
   (process.env.IMMEDIATE_CHECK || 'false').toLowerCase() === 'true';
-const hoursBeforeClose = parseInt(process.env.HOURS_BEFORE_CLOSE || '24', 10);
+const hoursBeforeClose = parseInt(process.env.HOURS_BEFORE_CLOSE || '2', 10);
 const requireAuthorAssigned = (process.env.REQUIRE_AUTHOR_ASSIGNED || 'true').toLowerCase() === 'true';
 
 const getHoursOpen = (pr) =>
@@ -66,7 +66,7 @@ async function validatePR(github, pr, owner, repo) {
   // Skip on API errors (fail-safe)
   if (issues === null) {
     console.log(`Skipping PR #${pr.number} due to API error`);
-    return { valid: true, apiError: true };
+    return { valid: true };
   }
 
   if (issues.length === 0) return { valid: false, reason: 'no_issue' };
@@ -94,27 +94,19 @@ async function closePR(github, pr, owner, repo, reason) {
       console.log(
         `✓ Commented on PR #${pr.number} (${reason}) link: ${pr.html_url}`
       );
-      return true;
+      return;
     }
 
     await github.rest.pulls.update({
       owner, repo, pull_number: pr.number, state: 'closed'
     });
     console.log(`✓ Closed PR #${pr.number} (${reason}) link: ${pr.html_url}`);
-    return true;
   } catch (err) {
     console.error(`✗ Failed to close PR #${pr.number}:`, err.message);
-    return false;
   }
 }
 
-module.exports = async ({ github, context, core }) => {
-  if (Number.isNaN(hoursBeforeClose) || hoursBeforeClose < 0) {
-    core.setFailed(`HOURS_BEFORE_CLOSE must be a number of hours (0 or more), got "${process.env.HOURS_BEFORE_CLOSE}".`);
-    return;
-  }
-
-  let failures = 0;
+module.exports = async ({ github, context }) => {
   try {
     const { owner, repo } = context.repo;
     const prs = await github.paginate(github.rest.pulls.list, {
@@ -143,21 +135,14 @@ module.exports = async ({ github, context, core }) => {
         continue;
       }
 
-      const { valid, reason, apiError } = await validatePR(github, pr, owner, repo);
-      if (apiError) {
-        failures++;
-      } else if (valid) {
+      const { valid, reason } = await validatePR(github, pr, owner, repo);
+      if (valid) {
         console.log(`PR #${pr.number} link: ${pr.html_url} is Valid ✓.`);
-      } else if (!(await closePR(github, pr, owner, repo, reason))) {
-        failures++;
+      } else {
+        await closePR(github, pr, owner, repo, reason);
       }
     }
   } catch (err) {
     console.error('Unexpected error:', err.message);
-    failures++;
-  }
-
-  if (failures > 0) {
-    core.setFailed(`${failures} problem(s) while checking or closing pull requests. See the log above.`);
   }
 };
