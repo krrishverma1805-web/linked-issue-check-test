@@ -26,7 +26,7 @@ async function getLinkedOpenIssues(github, owner, repo, prNumber) {
   }
 }
 
-module.exports = async ({ github, context }) => {
+module.exports = async ({ github, context, core }) => {
   let prNumber;
   try {
     const isDryRun = process.env.DRY_RUN === 'true';
@@ -101,11 +101,17 @@ module.exports = async ({ github, context }) => {
         `Thanks!`
       ].join('\n');
 
+      // On pull_request, PRs from forks only get a read-only token, so the bot can't comment on them.
+      const isForkPR = context.eventName === 'pull_request' &&
+        prData.head?.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+
       if (isDryRun) {
         console.log('DRY RUN: Would post the following comment:');
         console.log('---');
         console.log(commentBody);
         console.log('---');
+      } else if (isForkPR) {
+        core.warning('This pull request does not have an issue linked. Please link an issue by adding "Fixes #123" to the description. If this PR remains unlinked, it will be automatically closed.');
       } else {
         await github.rest.issues.createComment({
           owner: context.repo.owner,

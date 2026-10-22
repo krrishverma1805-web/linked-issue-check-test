@@ -1,10 +1,9 @@
 # This workflow checks PRs for missing linked issues and posts reminder comments when needed.
-# Uses pull_request_target to enable write permissions for fork PRs while relying
-# on the trusted base-branch checkout to avoid executing untrusted fork code.
+# PRs from forks only get a read-only token, so for them the reminder is shown as a warning on the run.
 name: PR Missing Linked Issue Reminder
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, reopened]
   workflow_dispatch:
     inputs:
@@ -50,4 +49,4 @@ jobs:
         with:
           script: |
             const script = require('./.github/scripts/bot-pr-missing-linked-issue.js');
-            await script({ github, context });
+            await script({ github, context, core });
